@@ -9,10 +9,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-#define the CNN architecture
+# define the CNN architecture
 class LENET5(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(LENET5, self).__init__()
         # convolutional layer (sees 28x28x1 image tensor)
         self.conv1 = nn.Conv2d(1, 6, 5, stride=1, padding=2)
         # convolutional layer (sees 14x14x16 tensor)
@@ -32,9 +32,9 @@ class LENET5(nn.Module):
         # add sequence of convolutional and max pooling layers
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
+        x = self.conv3(x)
         # flatten image input
-        #x = x.view(-1, 64 * 4 * 4)
+        x = x.view(-1, 120)
         # add dropout layer
         x = self.dropout(x)
         # add 1st hidden layer, with relu activation function
@@ -42,22 +42,19 @@ class LENET5(nn.Module):
         # add dropout layer
         x = self.dropout(x)
         # add 2nd hidden layer, with relu activation function
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
         return x
 
-# create a complete CNN
-#model = LENET5()
-#print(model)
 
-# move tensors to GPU if CUDA is available
-# if train_on_gpu:
-#     model.cuda()
-#
-# if torch.cuda.is_available():
-#     device = torch.device('cuda')
-# else:
-#     device = torch.device('cpu')
-# print(device)
+# Main
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    print('GPU available')
+else:
+    device = torch.device('cpu')
+    print('GPU not available, training on CPU.')
+
+print(device)
 # number of subprocesses to use for data loading
 num_workers = 0
 # how many samples per batch to load
@@ -89,9 +86,20 @@ test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_
 # obtain one batch of training images
 dataiter = iter(train_loader)
 images, labels = dataiter.next()
-images = images.numpy()
+images_np = images.numpy()
 
-img = images[0].squeeze()
+img = images_np[0].squeeze()
 # Plot image
-plt.imshow(img, cmap='gray')
-plt.show()
+#plt.imshow(img, cmap='gray')
+#plt.show()
+
+# create a complete CNN
+model = LENET5()
+print(model)
+
+# move tensors to GPU if CUDA is available
+model.to(device)
+
+# forward pass images
+output = model(images)
+print(output.size())
