@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 # define the CNN architecture
-class LENET5(nn.Module):
+class LeNet5(nn.Module):
     def __init__(self):
-        super(LENET5, self).__init__()
+        super(LeNet5, self).__init__()
         # convolutional layer (sees 28x28x1 image tensor)
         self.conv1 = nn.Conv2d(1, 6, 5, stride=1, padding=2)
         # convolutional layer (sees 14x14x16 tensor)
@@ -27,7 +27,7 @@ class LENET5(nn.Module):
         # linear layer (120 -> 10)
         self.fc2 = nn.Linear(84, 10)
         # dropout layer (p=0.25)
-        self.dropout = nn.Dropout(0.25)
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
@@ -43,22 +43,23 @@ class LENET5(nn.Module):
         # add dropout layer
         x = self.dropout(x)
         # add 2nd hidden layer, with relu activation function
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
         return x
 
 
 def train_model(model, criterion, optimizer, train_loader, test_loader):
     # number of epochs to train the model
-    n_epochs = 1
+    n_epochs = 10
 
     test_loss_min = np.Inf  # track change in test loss
+    train_losses, test_losses, accuracies = [], [], []
 
     for epoch in range(1, n_epochs + 1):
 
         # keep track of training and test loss
         train_loss = 0.0
         test_loss = 0.0
-
+        test_correct = 0
         ###################
         # train the model #
         ###################
@@ -94,6 +95,17 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
                 # update average test loss
                 test_loss += loss.item() * data.size(0)
 
+                # get probabilities
+                probs = torch.softmax(output, dim=1)
+                # get top probability and class
+                top_p, top_class = probs.topk(1, dim=1)
+                top_p, top_class = top_p.to(device), top_class.to(device)
+                equals = top_class == target.view(*top_class.shape)
+                # calculate accuracy
+                #accuracy = torch.mean(equals.type(torch.FloatTensor))
+                test_correct += equals.sum().item()
+
+
         model.train()
 
         # calculate average losses
@@ -101,8 +113,15 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
         test_loss = test_loss / len(test_loader)
 
         # print training/test statistics
-        print('Epoch: {} \tTraining Loss: {:.6f} \tTest Loss: {:.6f}'.format(
-            epoch, train_loss, test_loss))
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
+
+        accuracy = (test_correct / len(test_loader.dataset))*100
+        accuracies.append(accuracy)
+        print("Epoch: {}/{}.. ".format(epoch, n_epochs),
+              "Training Loss: {:.3f}.. ".format(train_loss),
+              "Test Loss: {:.3f}.. ".format(test_loss),
+              "Test Accuracy: {:.3f}%".format(accuracy))
 
         # save model if test loss has decreased
         if test_loss <= test_loss_min:
@@ -111,6 +130,15 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
                 test_loss))
             torch.save(model.state_dict(), 'model_LeNet5.pt')
             test_loss_min = test_loss
+    loss_plt = plt.figure(1)
+    plt.plot(train_losses, label='Training loss')
+    plt.plot(test_losses, label='Validation loss')
+    plt.legend(frameon=False)
+
+    accuracy_plt = plt.figure(2)
+    plt.plot(accuracies, label='Accuracy')
+    plt.legend(frameon=False)
+    plt.show()
 # Main
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -121,7 +149,7 @@ else:
     device = torch.device('cpu')
     print('GPU not available, training on CPU.')
 
-print(device)
+#print(device)
 
 # number of subprocesses to use for data loading
 num_workers = 0
@@ -161,21 +189,21 @@ img = images_np[0].squeeze()
 #plt.show()
 
 # create a complete CNN
-model = LENET5()
-print(model)
+model = LeNet5()
+#print(model)
 
 # move tensors to GPU if CUDA is available
 model.to(device)
 
 # forward pass images
 output = model(images.to(device))
-print(output.size())
+# print(output.size())
 
 # specify loss function (categorical cross-entropy)
 criterion = nn.CrossEntropyLoss()
 
 # specify optimizer
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+optimizer = optim.Adam(model.parameters(), lr=0.003)
 
 train_model(model, criterion, optimizer, train_loader, test_loader)
 
