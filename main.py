@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torch.optim as optim
 
 # define the CNN architecture
 class LENET5(nn.Module):
@@ -46,15 +47,82 @@ class LENET5(nn.Module):
         return x
 
 
+def train_model(model, criterion, optimizer, train_loader, test_loader):
+    # number of epochs to train the model
+    n_epochs = 1
+
+    test_loss_min = np.Inf  # track change in test loss
+
+    for epoch in range(1, n_epochs + 1):
+
+        # keep track of training and test loss
+        train_loss = 0.0
+        test_loss = 0.0
+
+        ###################
+        # train the model #
+        ###################
+
+        for data, target in train_loader:
+            # move tensors to GPU if CUDA is available
+            data, target = data.to(device), target.to(device)
+            # clear the gradients of all optimized variables
+            optimizer.zero_grad()
+            # forward pass: compute predicted outputs by passing inputs to the model
+            output = model(data)
+            # calculate the batch loss
+            loss = criterion(output, target)
+            # backward pass: compute gradient of the loss with respect to model parameters
+            loss.backward()
+            # perform a single optimization step (parameter update)
+            optimizer.step()
+            # update training loss
+            train_loss += loss.item() * data.size(0)
+
+        ######################
+        # test the model #
+        ######################
+        with torch.no_grad():
+            model.eval()
+            for data, target in test_loader:
+                # move tensors to GPU if CUDA is available
+                data, target = data.to(device), target.to(device)
+                # forward pass: compute predicted outputs by passing inputs to the model
+                output = model(data)
+                # calculate the batch loss
+                loss = criterion(output, target)
+                # update average test loss
+                test_loss += loss.item() * data.size(0)
+
+        model.train()
+
+        # calculate average losses
+        train_loss = train_loss / len(train_loader)
+        test_loss = test_loss / len(test_loader)
+
+        # print training/test statistics
+        print('Epoch: {} \tTraining Loss: {:.6f} \tTest Loss: {:.6f}'.format(
+            epoch, train_loss, test_loss))
+
+        # save model if test loss has decreased
+        if test_loss <= test_loss_min:
+            print('Test loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
+                test_loss_min,
+                test_loss))
+            torch.save(model.state_dict(), 'model_LeNet5.pt')
+            test_loss_min = test_loss
 # Main
 if torch.cuda.is_available():
     device = torch.device('cuda')
+    #device = torch.device('cpu')
+
     print('GPU available')
 else:
     device = torch.device('cpu')
     print('GPU not available, training on CPU.')
 
 print(device)
+
 # number of subprocesses to use for data loading
 num_workers = 0
 # how many samples per batch to load
@@ -65,19 +133,18 @@ train_data = torchvision.datasets.FashionMNIST(
     root = './data/FashionMNIST',
     train = True,
     download = True,
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
+    transform = transforms.Compose([transforms.ToTensor(),
+                                  transforms.Normalize((0.5,), (0.5,))])
 )
 
 test_data = torchvision.datasets.FashionMNIST(
     root = './data/FashionMNIST',
     train = False,
     download = True,
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
+    transform = transforms.Compose([transforms.ToTensor(),
+                                  transforms.Normalize((0.5,), (0.5,))])
 )
+
 
 # prepare data loaders
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
@@ -101,5 +168,16 @@ print(model)
 model.to(device)
 
 # forward pass images
-output = model(images)
+output = model(images.to(device))
 print(output.size())
+
+# specify loss function (categorical cross-entropy)
+criterion = nn.CrossEntropyLoss()
+
+# specify optimizer
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+train_model(model, criterion, optimizer, train_loader, test_loader)
+
+
+
