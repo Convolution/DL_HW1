@@ -12,7 +12,7 @@ import torch.optim as optim
 
 # define the CNN architecture
 class LeNet5(nn.Module):
-    def __init__(self):
+    def __init__(self, drop = False, decay = False, BN = False):
         super(LeNet5, self).__init__()
         # convolutional layer (sees 28x28x1 image tensor)
         self.conv1 = nn.Conv2d(1, 6, 5, stride=1, padding=2)
@@ -28,20 +28,48 @@ class LeNet5(nn.Module):
         self.fc2 = nn.Linear(84, 10)
         # dropout layer (p=0.25)
         self.dropout = nn.Dropout(0.2)
+        # batch normalization
+        self.BN1 = nn.BatchNorm2d(6, device=device)
+        self.BN2 = nn.BatchNorm2d(16, device=device)
+        self.BN3 = nn.BatchNorm2d(120, device=device)
+        self.BN4 = nn.BatchNorm1d(120, device=device)
+        self.BN5 = nn.BatchNorm1d(84, device=device)
+        # layer modes
+        self.modes = {'drop': drop, 'decay': decay, 'BN': BN}
 
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
-        x = self.pool(F.sigmoid(self.conv1(x)))
-        x = self.pool(F.sigmoid(self.conv2(x)))
-        x = F.sigmoid(self.conv3(x))
-        # flatten image input
-        x = x.view(-1, 120)
-        # add dropout layer
-        x = self.dropout(x)
-        # add 1st hidden layer, with relu activation function
-        x = F.sigmoid(self.fc1(x))
-        # add dropout layer
-        x = self.dropout(x)
+        if self.modes['drop']:
+            x = self.pool(F.sigmoid(self.conv1(x)))
+            x = self.pool(F.sigmoid(self.conv2(x)))
+            x = F.sigmoid(self.conv3(x))
+            # flatten image input
+            x = x.view(-1, 120)
+            # add dropout layer
+            x = self.dropout(x)
+            # add 1st hidden layer, with relu activation function
+            x = F.sigmoid(self.fc1(x))
+            # add dropout layer
+            x = self.dropout(x)
+        #elif:
+        elif self.modes['BN']:
+            x = self.pool(F.relu(self.BN1(self.conv1(x))))
+            x = self.pool(F.relu(self.BN2(self.conv2(x))))
+            x = F.relu(self.BN3(self.conv3(x)))
+            # flatten image input
+            x = self.BN4(x.view(-1, 120))
+            # add 1st hidden layer, with relu activation function
+            x = F.relu(self.BN5(self.fc1(x)))
+        else:
+            x = self.pool(F.sigmoid(self.conv1(x)))
+            x = self.pool(F.sigmoid(self.conv2(x)))
+            x = F.sigmoid(self.conv3(x))
+            # flatten image input
+            x = x.view(-1, 120)
+
+            # add 1st hidden layer, with relu activation function
+            x = F.sigmoid(self.fc1(x))
+
         # add 2nd hidden layer, with relu activation function
         x = self.fc2(x)
         return x
@@ -49,7 +77,7 @@ class LeNet5(nn.Module):
 
 def train_model(model, criterion, optimizer, train_loader, test_loader):
     # number of epochs to train the model
-    n_epochs = 2
+    n_epochs = 5
 
     test_loss_min = np.Inf  # track change in test loss
     train_losses, test_losses, accuracies_test, accuracies_train = [], [], [], []
@@ -152,11 +180,10 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
     plt.plot(accuracies_test, label='Test accuracy')
     plt.legend(frameon=False)
     plt.show()
-# Main
+#%% Main
+global device
 if torch.cuda.is_available():
     device = torch.device('cuda')
-    #device = torch.device('cpu')
-
     print('GPU available')
 else:
     device = torch.device('cpu')
@@ -202,7 +229,7 @@ img = images_np[0].squeeze()
 #plt.show()
 
 # create a complete CNN
-model = LeNet5()
+model = LeNet5(BN=True)
 #print(model)
 
 # move tensors to GPU if CUDA is available
