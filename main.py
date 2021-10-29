@@ -31,15 +31,15 @@ class LeNet5(nn.Module):
 
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.conv3(x)
+        x = self.pool(F.sigmoid(self.conv1(x)))
+        x = self.pool(F.sigmoid(self.conv2(x)))
+        x = F.sigmoid(self.conv3(x))
         # flatten image input
         x = x.view(-1, 120)
         # add dropout layer
         x = self.dropout(x)
         # add 1st hidden layer, with relu activation function
-        x = F.relu(self.fc1(x))
+        x = F.sigmoid(self.fc1(x))
         # add dropout layer
         x = self.dropout(x)
         # add 2nd hidden layer, with relu activation function
@@ -49,16 +49,17 @@ class LeNet5(nn.Module):
 
 def train_model(model, criterion, optimizer, train_loader, test_loader):
     # number of epochs to train the model
-    n_epochs = 10
+    n_epochs = 2
 
     test_loss_min = np.Inf  # track change in test loss
-    train_losses, test_losses, accuracies = [], [], []
+    train_losses, test_losses, accuracies_test, accuracies_train = [], [], [], []
 
     for epoch in range(1, n_epochs + 1):
 
         # keep track of training and test loss
         train_loss = 0.0
         test_loss = 0.0
+        train_correct = 0
         test_correct = 0
         ###################
         # train the model #
@@ -79,6 +80,19 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
             optimizer.step()
             # update training loss
             train_loss += loss.item() * data.size(0)
+
+            # get probabilities
+            probs = torch.softmax(output, dim=1)
+            # get top probability and class
+            top_p, top_class = probs.topk(1, dim=1)
+            top_p, top_class = top_p.to(device), top_class.to(device)
+            equals = top_class == target.view(*top_class.shape)
+            # calculate accuracy
+            train_correct += equals.sum().item()
+
+        accuracy_train = (train_correct / len(train_loader.dataset))*100
+        accuracies_train.append(accuracy_train)
+
 
         ######################
         # test the model #
@@ -102,9 +116,7 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
                 top_p, top_class = top_p.to(device), top_class.to(device)
                 equals = top_class == target.view(*top_class.shape)
                 # calculate accuracy
-                #accuracy = torch.mean(equals.type(torch.FloatTensor))
                 test_correct += equals.sum().item()
-
 
         model.train()
 
@@ -116,12 +128,12 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
         train_losses.append(train_loss)
         test_losses.append(test_loss)
 
-        accuracy = (test_correct / len(test_loader.dataset))*100
-        accuracies.append(accuracy)
+        accuracy_test = (test_correct / len(test_loader.dataset))*100
+        accuracies_test.append(accuracy_test)
         print("Epoch: {}/{}.. ".format(epoch, n_epochs),
               "Training Loss: {:.3f}.. ".format(train_loss),
               "Test Loss: {:.3f}.. ".format(test_loss),
-              "Test Accuracy: {:.3f}%".format(accuracy))
+              "Test Accuracy: {:.3f}%".format(accuracy_test))
 
         # save model if test loss has decreased
         if test_loss <= test_loss_min:
@@ -136,7 +148,8 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
     plt.legend(frameon=False)
 
     accuracy_plt = plt.figure(2)
-    plt.plot(accuracies, label='Accuracy')
+    plt.plot(accuracies_train, label='Train accuracy')
+    plt.plot(accuracies_test, label='Test accuracy')
     plt.legend(frameon=False)
     plt.show()
 # Main
