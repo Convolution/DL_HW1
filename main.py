@@ -40,15 +40,15 @@ class LeNet5(nn.Module):
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
         if self.modes['drop']:
-            x = self.pool(F.sigmoid(self.conv1(x)))
-            x = self.pool(F.sigmoid(self.conv2(x)))
-            x = F.sigmoid(self.conv3(x))
+            x = self.pool(F.relu(self.conv1(x)))
+            x = self.pool(F.relu(self.conv2(x)))
+            x = F.relu(self.conv3(x))
             # flatten image input
             x = x.view(-1, 120)
             # add dropout layer
             x = self.dropout(x)
             # add 1st hidden layer, with relu activation function
-            x = F.sigmoid(self.fc1(x))
+            x = F.relu(self.fc1(x))
             # add dropout layer
             x = self.dropout(x)
         #elif:
@@ -243,7 +243,7 @@ output = model(images.to(device))
 criterion = nn.CrossEntropyLoss()
 
 # specify optimizer
-optimizer = optim.Adam(model.parameters(), lr=0.003)
+optimizer = optim.Adam(model.parameters(),weight_decay=1, lr=0.003)
 
 train_model(model, criterion, optimizer, train_loader, test_loader)
 
