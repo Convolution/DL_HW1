@@ -61,14 +61,14 @@ class LeNet5(nn.Module):
             # add 1st hidden layer, with relu activation function
             x = F.relu(self.BN5(self.fc1(x)))
         else:
-            x = self.pool(F.sigmoid(self.conv1(x)))
-            x = self.pool(F.sigmoid(self.conv2(x)))
-            x = F.sigmoid(self.conv3(x))
+            x = self.pool(F.relu(self.conv1(x)))
+            x = self.pool(F.relu(self.conv2(x)))
+            x = F.relu(self.conv3(x))
             # flatten image input
             x = x.view(-1, 120)
 
             # add 1st hidden layer, with relu activation function
-            x = F.sigmoid(self.fc1(x))
+            x = F.relu(self.fc1(x))
 
         # add 2nd hidden layer, with relu activation function
         x = self.fc2(x)
