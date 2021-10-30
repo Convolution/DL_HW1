@@ -77,7 +77,7 @@ class LeNet5(nn.Module):
 
 def train_model(model, criterion, optimizer, train_loader, test_loader):
     # number of epochs to train the model
-    n_epochs = 5
+    n_epochs = 20
 
     test_loss_min = np.Inf  # track change in test loss
     train_losses, test_losses, accuracies_test, accuracies_train = [], [], [], []
@@ -172,14 +172,43 @@ def train_model(model, criterion, optimizer, train_loader, test_loader):
             test_loss_min = test_loss
     loss_plt = plt.figure(1)
     plt.plot(train_losses, label='Training loss')
-    plt.plot(test_losses, label='Validation loss')
+    plt.plot(test_losses, label='Test loss')
+    plt.xlabel('epochs')
+    plt.ylabel('Loss')
+    plt.title('Loss graph')
     plt.legend(frameon=False)
 
     accuracy_plt = plt.figure(2)
     plt.plot(accuracies_train, label='Train accuracy')
     plt.plot(accuracies_test, label='Test accuracy')
+    plt.xlabel('epochs')
+    plt.ylabel('Accuracy [%]')
+    plt.title('Accuracy graph')
     plt.legend(frameon=False)
     plt.show()
+
+
+def model_test(model, test_loader):
+    test_correct = 0
+    with torch.no_grad():
+        model.eval()
+        for data, target in test_loader:
+            # move tensors to GPU if CUDA is available
+            data, target = data.to(device), target.to(device)
+            # forward pass: compute predicted outputs by passing inputs to the model
+            output = model(data)
+            # get probabilities
+            probs = torch.softmax(output, dim=1)
+            # get top probability and class
+            top_p, top_class = probs.topk(1, dim=1)
+            top_p, top_class = top_p.to(device), top_class.to(device)
+            equals = top_class == target.view(*top_class.shape)
+            # calculate accuracy
+            test_correct += equals.sum().item()
+    model.train()
+    accuracy_test = (test_correct / len(test_loader.dataset))*100
+    print("Test Accuracy: {:.3f}%".format(accuracy_test))
+
 #%% Main
 global device
 if torch.cuda.is_available():
@@ -215,8 +244,8 @@ test_data = torchvision.datasets.FashionMNIST(
 
 
 # prepare data loaders
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=num_workers)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=num_workers, shuffle=True)
 
 # obtain one batch of training images
 dataiter = iter(train_loader)
@@ -229,7 +258,7 @@ img = images_np[0].squeeze()
 #plt.show()
 
 # create a complete CNN
-model = LeNet5(BN=True)
+model = LeNet5()
 #print(model)
 
 # move tensors to GPU if CUDA is available
@@ -243,9 +272,15 @@ output = model(images.to(device))
 criterion = nn.CrossEntropyLoss()
 
 # specify optimizer
-optimizer = optim.Adam(model.parameters(),weight_decay=1, lr=0.003)
+optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_decay=0.001
 
 train_model(model, criterion, optimizer, train_loader, test_loader)
+
+# Load pretrained model
+state_dict = torch.load('model_LeNet5.pt')
+# print(state_dict.keys())
+model.load_state_dict(state_dict)
+model_test(model, test_loader)
 
 
 
