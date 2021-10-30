@@ -75,10 +75,7 @@ class LeNet5(nn.Module):
         return x
 
 
-def train_model(model, criterion, optimizer, train_loader, test_loader):
-    # number of epochs to train the model
-    n_epochs = 20
-
+def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs):
     test_loss_min = np.Inf  # track change in test loss
     train_losses, test_losses, accuracies_test, accuracies_train = [], [], [], []
 
@@ -274,7 +271,9 @@ criterion = nn.CrossEntropyLoss()
 # specify optimizer
 optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_decay=0.001
 
-train_model(model, criterion, optimizer, train_loader, test_loader)
+# number of epochs to train the model
+epochs = 20
+train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
 
 # Load pretrained model
 state_dict = torch.load('model_LeNet5.pt')
