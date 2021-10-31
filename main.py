@@ -4,10 +4,8 @@ import torchvision
 from torchvision import datasets
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-
 import torch.nn as nn
 import torch.nn.functional as F
-
 import torch.optim as optim
 
 # define the CNN architecture
@@ -255,6 +253,8 @@ img = images_np[0].squeeze()
 #plt.show()
 
 # create a complete CNN
+# Set mode by calling LeNet5(drop=True) for droput, LeNet5(decay=True) for weight decay, or
+#  LeNet5(BN=True) for batch normalization
 model = LeNet5()
 #print(model)
 
@@ -273,10 +273,14 @@ optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_de
 
 # number of epochs to train the model
 epochs = 20
-train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
+#train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
 
 # Load pretrained model
-state_dict = torch.load('model_LeNet5.pt')
+# Choose model between: 0:'base', 1:'dropout', 2:'weight_decay', 3:'batch_norm'
+model_mode = 0
+model_mode_dict = {0: 'base', 1: 'dropout', 2: 'weight_decay', 3: 'batch_norm'}
+model_path = 'model_LeNet5_'+model_mode_dict[model_mode]+'.pt'
+state_dict = torch.load(model_path)
 # print(state_dict.keys())
 model.load_state_dict(state_dict)
 model_test(model, test_loader)
