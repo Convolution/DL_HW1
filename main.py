@@ -196,10 +196,24 @@ def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs
     plt.show()
 
 
-def model_test(model, test_loader):
+def model_test(model, train_loader, test_loader):
+    train_correct = 0
     test_correct = 0
     with torch.no_grad():
         model.eval()
+        for data, target in train_loader:
+            # move tensors to GPU if CUDA is available
+            data, target = data.to(device), target.to(device)
+            # forward pass: compute predicted outputs by passing inputs to the model
+            output = model(data)
+            # get probabilities
+            probs = torch.softmax(output, dim=1)
+            # get top probability and class
+            top_p, top_class = probs.topk(1, dim=1)
+            top_p, top_class = top_p.to(device), top_class.to(device)
+            equals = top_class == target.view(*top_class.shape)
+            # calculate accuracy
+            train_correct += equals.sum().item()
         for data, target in test_loader:
             # move tensors to GPU if CUDA is available
             data, target = data.to(device), target.to(device)
@@ -214,8 +228,10 @@ def model_test(model, test_loader):
             # calculate accuracy
             test_correct += equals.sum().item()
     model.train()
+    accuracy_train = (train_correct / len(train_loader.dataset))*100
     accuracy_test = (test_correct / len(test_loader.dataset))*100
-    print("Test Accuracy: {:.3f}%".format(accuracy_test))
+    print("Train Accuracy: {:.3f}%".format(accuracy_train),
+          "Test Accuracy: {:.3f}%".format(accuracy_test))
 
 #%% Main
 global device
@@ -298,6 +314,6 @@ state_dict = torch.load(model_path)
 # print(state_dict.keys())
 model.load_state_dict(state_dict)
 model.set_mode(model_mode)
-model_test(model, test_loader)
+model_test(model, train_loader, test_loader)
 
 
