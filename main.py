@@ -35,6 +35,18 @@ class LeNet5(nn.Module):
         # layer modes
         self.modes = {'drop': drop, 'BN': BN}
 
+    def set_mode(self, mode):
+        # 0:'base', 1:'dropout', 2:'weight_decay', 3:'batch_norm'
+        if mode == 1:
+            self.modes['drop'] = True
+            self.modes['BN'] = False
+        elif mode == 3:
+            self.modes['drop'] = False
+            self.modes['BN'] = True
+        else:
+            self.modes['drop'] = False
+            self.modes['BN'] = False
+
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
         if self.modes['drop']:
@@ -49,7 +61,6 @@ class LeNet5(nn.Module):
             x = F.relu(self.fc1(x))
             # add dropout layer
             x = self.dropout(x)
-        #elif:
         elif self.modes['BN']:
             x = self.pool(F.relu(self.BN1(self.conv1(x))))
             x = self.pool(F.relu(self.BN2(self.conv2(x))))
@@ -255,9 +266,10 @@ img = images_np[0].squeeze()
 #plt.show()
 
 # create a complete CNN
-# Set mode by calling LeNet5(drop=True) for droput, LeNet5(decay=True) for weight decay, or
-#  LeNet5(BN=True) for batch normalization
-model = LeNet5(BN=True)
+# Set mode by calling LeNet5() for base or weight decay mode, LeNet5(drop=True) for dropout, or
+# LeNet5(BN=True) for batch normalization
+
+model = LeNet5()
 #print(model)
 
 # move tensors to GPU if CUDA is available
@@ -274,7 +286,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_decay=0.001
 
 # number of epochs to train the model
-epochs = 20
+epochs = 3
 train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
 
 # Load pretrained model
@@ -285,7 +297,7 @@ model_path = 'model_LeNet5_'+model_mode_dict[model_mode]+'.pt'
 state_dict = torch.load(model_path)
 # print(state_dict.keys())
 model.load_state_dict(state_dict)
+model.set_mode(model_mode)
 model_test(model, test_loader)
-
 
 
