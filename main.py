@@ -10,7 +10,7 @@ import torch.optim as optim
 
 # define the CNN architecture
 class LeNet5(nn.Module):
-    def __init__(self, drop = False, decay = False, BN = False):
+    def __init__(self, drop=False, BN=False):
         super(LeNet5, self).__init__()
         # convolutional layer (sees 28x28x1 image tensor)
         self.conv1 = nn.Conv2d(1, 6, 5, stride=1, padding=2)
@@ -33,7 +33,7 @@ class LeNet5(nn.Module):
         self.BN4 = nn.BatchNorm1d(120, device=device)
         self.BN5 = nn.BatchNorm1d(84, device=device)
         # layer modes
-        self.modes = {'drop': drop, 'decay': decay, 'BN': BN}
+        self.modes = {'drop': drop, 'BN': BN}
 
     def forward(self, x):
         # add sequence of convolutional and max pooling layers
@@ -76,7 +76,6 @@ class LeNet5(nn.Module):
 def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs):
     test_loss_min = np.Inf  # track change in test loss
     train_losses, test_losses, accuracies_test, accuracies_train = [], [], [], []
-
     for epoch in range(1, n_epochs + 1):
 
         # keep track of training and test loss
@@ -87,7 +86,6 @@ def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs
         ###################
         # train the model #
         ###################
-
         for data, target in train_loader:
             # move tensors to GPU if CUDA is available
             data, target = data.to(device), target.to(device)
@@ -103,6 +101,11 @@ def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs
             optimizer.step()
             # update training loss
             train_loss += loss.item() * data.size(0)
+            # If mode is dropout, calculate train accuracy without dropout
+            if model.modes['drop']:
+                model.eval()
+                output = model(data)
+                model.train()
 
             # get probabilities
             probs = torch.softmax(output, dim=1)
@@ -115,7 +118,6 @@ def train_model(model, criterion, optimizer, train_loader, test_loader, n_epochs
 
         accuracy_train = (train_correct / len(train_loader.dataset))*100
         accuracies_train.append(accuracy_train)
-
 
         ######################
         # test the model #
@@ -255,7 +257,7 @@ img = images_np[0].squeeze()
 # create a complete CNN
 # Set mode by calling LeNet5(drop=True) for droput, LeNet5(decay=True) for weight decay, or
 #  LeNet5(BN=True) for batch normalization
-model = LeNet5()
+model = LeNet5(BN=True)
 #print(model)
 
 # move tensors to GPU if CUDA is available
@@ -273,7 +275,7 @@ optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_de
 
 # number of epochs to train the model
 epochs = 20
-#train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
+train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
 
 # Load pretrained model
 # Choose model between: 0:'base', 1:'dropout', 2:'weight_decay', 3:'batch_norm'
