@@ -242,8 +242,6 @@ else:
     device = torch.device('cpu')
     print('GPU not available, training on CPU.')
 
-#print(device)
-
 # number of subprocesses to use for data loading
 num_workers = 0
 # how many samples per batch to load
@@ -278,8 +276,8 @@ images_np = images.numpy()
 
 img = images_np[0].squeeze()
 # Plot image
-#plt.imshow(img, cmap='gray')
-#plt.show()
+plt.imshow(img, cmap='gray')
+plt.show()
 
 # create a complete CNN
 # Set mode by calling LeNet5() for base or weight decay mode, LeNet5(drop=True) for dropout, or
@@ -299,10 +297,10 @@ output = model(images.to(device))
 criterion = nn.CrossEntropyLoss()
 
 # specify optimizer
-optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_decay=0.001
+optimizer = optim.Adam(model.parameters(),weight_decay=0, lr=0.001)  # weight_decay=0.001 is good
 
 # number of epochs to train the model
-epochs = 3
+epochs = 20
 train_model(model, criterion, optimizer, train_loader, test_loader, epochs)
 
 # Load pretrained model
@@ -315,5 +313,3 @@ state_dict = torch.load(model_path)
 model.load_state_dict(state_dict)
 model.set_mode(model_mode)
 model_test(model, train_loader, test_loader)
-
-
